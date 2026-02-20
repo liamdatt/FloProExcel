@@ -1,0 +1,41 @@
+import { isRecord } from "../utils/type-guards.js";
+
+export function tryParseBridgeJson(text: string): unknown {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return null;
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+}
+
+export function extractBridgeErrorMessage(value: unknown): string | null {
+  if (isRecord(value) && typeof value.error === "string") {
+    return value.error;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  return null;
+}
+
+export function joinBridgeUrl(baseUrl: string, path: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}${path}`;
+}
+
+export function isAbortError(error: unknown): boolean {
+  if (error instanceof DOMException) {
+    return error.name === "AbortError";
+  }
+
+  if (error instanceof Error) {
+    return error.name === "AbortError";
+  }
+
+  return false;
+}

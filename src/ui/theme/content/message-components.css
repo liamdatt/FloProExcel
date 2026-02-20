@@ -1,0 +1,158 @@
+/* ── Tool group wrapper ───────────────────────────────── */
+
+.pi-tool-group {
+  display: flex;
+  flex-direction: column;
+  background: var(--pill-green-bg);
+  border: var(--pill-green-border);
+  border-radius: var(--pill-radius);
+}
+
+/* Rows inside group */
+.pi-tool-group > tool-message {
+  padding: 1px 6px;
+}
+
+/* Divider between rows */
+.pi-tool-group > tool-message + tool-message {
+  border-top: 1px solid oklch(0.45 0.12 160 / 0.07);
+}
+
+/* Fallback wrapper for tool messages that don't use custom renderers. */
+.pi-tool-card-fallback {
+  border: 1px solid var(--border);
+  background: var(--pi-inner-bg);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 1px 3px var(--alpha-4);
+}
+
+/* Markdown — readable at sidebar width */
+markdown-block { line-height: 1.6; }
+markdown-block p { margin: 0 0 10px; font-size: var(--text-base); }
+markdown-block p:last-child { margin-bottom: 0; }
+markdown-block ul, markdown-block ol { margin: 0 0 10px; padding-left: 20px; }
+markdown-block li { margin-bottom: 4px; }
+markdown-block code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  background: var(--muted);
+  padding: 2px 5px;
+  border-radius: var(--radius-xs);
+}
+markdown-block pre {
+  background: oklch(0.97 0.002 90) !important;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  overflow-x: auto;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+/* Code blocks */
+code-block > div {
+  border-radius: var(--radius-sm);
+}
+
+/* Thinking blocks — green card matching tool cards, left-aligned */
+thinking-block {
+  font-size: var(--text-base);
+  font-family: var(--font-sans);
+}
+thinking-block .thinking-block {
+  border-radius: var(--pill-radius);
+  border: var(--pill-green-border);
+  background: var(--pill-green-bg);
+  overflow: hidden;
+}
+thinking-block .thinking-header {
+  font-size: var(--text-base);
+  width: 100%;
+  padding: var(--pill-padding-y) var(--pill-padding-x);
+  justify-content: space-between;
+}
+
+/* Move chevron to the right to match tool cards */
+thinking-block .thinking-header > span:first-child { order: 2; }
+thinking-block .thinking-header > span:last-child { order: 1; }
+
+/* Expanded body — white inner pill matching tool card __inner */
+thinking-block markdown-block {
+  display: block;
+  padding: 10px 14px 14px;
+  margin: 0 8px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--pi-inner-bg);
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Added by applyMessageStyleHooks() so we don't depend on utility classes. */
+.pi-thinking-label--streaming {
+  animation-duration: 1.2s;
+  --tw-gradient-from: oklch(0.55 0 0);
+  --tw-gradient-via: oklch(0.15 0 0);
+  --tw-gradient-to: oklch(0.55 0 0);
+}
+
+/* Spinner on thinking header while streaming. */
+.pi-thinking-label--streaming::before {
+  content: "";
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  margin-right: 6px;
+  vertical-align: middle;
+  background-color: var(--foreground);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2v4'/%3E%3Cpath d='m16.2 7.8 2.9-2.9'/%3E%3Cpath d='M18 12h4'/%3E%3Cpath d='m16.2 16.2 2.9 2.9'/%3E%3Cpath d='M12 18v4'/%3E%3Cpath d='m4.9 19.1 2.9-2.9'/%3E%3Cpath d='M2 12h4'/%3E%3Cpath d='m4.9 4.9 2.9 2.9'/%3E%3C/svg%3E");
+  -webkit-mask-size: contain;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2v4'/%3E%3Cpath d='m16.2 7.8 2.9-2.9'/%3E%3Cpath d='M18 12h4'/%3E%3Cpath d='m16.2 16.2 2.9 2.9'/%3E%3Cpath d='M12 18v4'/%3E%3Cpath d='m4.9 19.1 2.9-2.9'/%3E%3Cpath d='M2 12h4'/%3E%3Cpath d='m4.9 4.9 2.9 2.9'/%3E%3C/svg%3E");
+  mask-size: contain;
+  animation: pi-think-spin 0.7s linear infinite;
+}
+
+@keyframes pi-think-spin {
+  to { transform: rotate(360deg); }
+}
+
+
+/* Ctrl+O toggle — thinking blocks: strip card chrome like complete tool cards */
+.pi-hide-internals thinking-block .thinking-block {
+  border: none;
+  background: none;
+  border-radius: 0;
+}
+.pi-hide-internals thinking-block .thinking-header {
+  padding: 2px 4px;
+  opacity: 0.55;
+}
+
+/* Ctrl+O toggle — tool cards: keep normal card styling.
+   (We collapse/expand the tool body by toggling max-h-* classes in JS.) */
+
+.pi-hide-internals .pi-assistant-body {
+  gap: 8px;
+}
+
+/* Usage/cost — hidden (context % in status bar is enough) */
+.pi-assistant-usage {
+  display: none;
+}
+
+/* Abort message — indent to align with content */
+.pi-assistant-aborted {
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+  font-style: italic;
+  padding-left: 12px;
+}
+
+/* Streaming cursor — hidden; the pi-working indicator already signals activity */
+.pi-streaming-cursor {
+  display: none;
+}
+

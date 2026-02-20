@@ -1,0 +1,120 @@
+/* ═══════════════════════════════════════════════════════
+   12. DIALOGS — stable selectors only
+   Hooks are added by installDialogStyleHooks() in src/ui/dialog-style-hooks.ts.
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Shared backdrop + card ── */
+
+.pi-dialog-backdrop {
+  background: var(--alpha-25);
+  backdrop-filter: var(--glass-blur-heavy);
+  -webkit-backdrop-filter: var(--glass-blur-heavy);
+}
+
+/*
+ * mini-lit Dialog sets width/height via inline styles.
+ * Use !important only where we need to override those.
+ */
+.pi-dialog-card {
+  width: min(340px, 92vw) !important;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--glass-shadow-lg);
+  border: var(--glass-border);
+  background: var(--glass-bg-solid);
+}
+
+.pi-dialog-close {
+  top: 16px;
+  right: 16px;
+}
+
+/* Save/primary button — teal */
+.pi-dialog-save-button {
+  background: var(--pi-green);
+  border-radius: var(--radius-sm);
+}
+
+/* ── ModelSelector specifics ── */
+
+agent-model-selector .pi-model-selector-card {
+  height: min(500px, 78vh) !important;
+}
+
+/* Font consistency — DM Sans everywhere */
+agent-model-selector {
+  font-family: var(--font-sans);
+}
+
+/* Title — smaller, match our weight */
+agent-model-selector h2 {
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+/* Header section — tighter padding for sidebar width */
+agent-model-selector .pi-model-selector-header {
+  padding: 16px 16px 12px;
+  gap: 12px;
+}
+
+/* Search input — softer focus ring, match our input card style */
+agent-model-selector input {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  border-radius: var(--radius-sm);
+}
+
+agent-model-selector input:focus-visible {
+  border-color: var(--green-alpha-25);
+  box-shadow: 0 0 0 2px var(--pi-green-light);
+}
+
+/* Hide filter pills (Thinking / Vision) — we don't need them */
+agent-model-selector .pi-model-selector-filters {
+  display: none;
+}
+
+/* Model items — tighter, softer dividers */
+agent-model-selector .pi-model-selector-item {
+  padding: 10px 16px;
+  border-color: var(--alpha-4);
+}
+
+agent-model-selector .pi-model-selector-item:hover,
+agent-model-selector .pi-model-selector-item--selected {
+  background: var(--pi-green-lighter);
+}
+
+/* Model ID — our mono font */
+agent-model-selector .pi-model-selector-item-id {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+/* Provider badge — subtle tinted pill instead of stark outline */
+agent-model-selector .pi-model-selector-item-provider {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  border-color: var(--alpha-6);
+  background: var(--alpha-3);
+  border-radius: var(--radius-xs);
+  letter-spacing: 0.01em;
+}
+
+/* Hide capability icons (brain/vision) in model detail row */
+agent-model-selector .pi-model-selector-item-capabilities > span:has(svg) {
+  display: none;
+}
+
+/* Hide cost column */
+agent-model-selector .pi-model-selector-item-cost {
+  display: none;
+}
+
+/* Context info — our mono font, smaller */
+agent-model-selector .pi-model-selector-item-meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}

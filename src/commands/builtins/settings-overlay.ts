@@ -1,0 +1,395 @@
+/**
+ * Unified settings overlay.
+ *
+ * Tabs:
+ * - Access (managed OpenRouter)
+ * - More (execution mode, advanced, experimental)
+ */
+
+import { PI_EXECUTION_MODE_CHANGED_EVENT, type ExecutionMode } from "../../execution/mode.js";
+import {
+  createToggleRow,
+} from "../../ui/extensions-hub-components.js";
+import {
+  closeOverlayById,
+  createOverlayButton,
+  createOverlayDialog,
+  createOverlayHeader,
+  createOverlaySectionTitle,
+} from "../../ui/overlay-dialog.js";
+import { SETTINGS_OVERLAY_ID } from "../../ui/overlay-ids.js";
+import { showToast } from "../../ui/toast.js";
+import { isRecord } from "../../utils/type-guards.js";
+import {
+  buildExperimentalFeatureContent,
+  buildExperimentalFeatureFooter,
+} from "./experimental-overlay.js";
+
+type LegacyExtensionsSection = "connections" | "plugins" | "skills";
+type SettingsPrimaryTab = "logins" | "more";
+
+type SettingsAnchor = "providers" | "execution-mode" | "advanced" | "experimental";
+
+type SettingsCleanupRegistrar = (cleanup: () => void) => void;
+
+export type SettingsOverlaySection =
+  | SettingsPrimaryTab
+  | "providers"
+  | "proxy"
+  | "execution-mode"
+  | "advanced"
+  | "experimental"
+  | LegacyExtensionsSection;
+
+export interface ShowSettingsDialogOptions {
+  section?: SettingsOverlaySection;
+}
+
+interface SettingsDialogDependencies {
+  openRulesDialog?: () => Promise<void> | void;
+  openRecoveryDialog?: () => Promise<void> | void;
+  openShortcutsDialog?: () => void;
+  getExecutionMode?: () => ExecutionMode;
+  setExecutionMode?: (mode: ExecutionMode) => Promise<void>;
+}
+
+interface ResolvedSectionFocus {
+  tab: SettingsPrimaryTab;
+  anchor?: SettingsAnchor;
+}
+
+const SETTINGS_TABS: ReadonlyArray<{ id: SettingsPrimaryTab; label: string }> = [
+  { id: "logins", label: "Access" },
+  { id: "more", label: "More" },
+];
+
+let settingsDialogOpenInFlight: Promise<void> | null = null;
+let pendingSectionFocus: SettingsOverlaySection | null = null;
+let dependencies: SettingsDialogDependencies = {};
+
+export function configureSettingsDialogDependencies(next: SettingsDialogDependencies): void {
+  dependencies = { ...next };
+}
+
+function resolveSectionFocus(section: SettingsOverlaySection | undefined): ResolvedSectionFocus {
+  switch (section) {
+    case "providers":
+    case "proxy":
+      return { tab: "logins", anchor: "providers" };
+    case "execution-mode":
+      return { tab: "more", anchor: "execution-mode" };
+    case "advanced":
+      return { tab: "more", anchor: "advanced" };
+    case "experimental":
+      return { tab: "more", anchor: "experimental" };
+    case "more":
+      return { tab: "more" };
+    case "connections":
+    case "plugins":
+    case "skills":
+    case "logins":
+    default:
+      return { tab: "logins" };
+  }
+}
+
+function activateSettingsTab(overlay: HTMLElement, tab: SettingsPrimaryTab): void {
+  const tabButtons = overlay.querySelectorAll<HTMLButtonElement>("[data-settings-tab]");
+  for (const button of tabButtons) {
+    const isActive = button.dataset.settingsTab === tab;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-selected", isActive ? "true" : "false");
+  }
+
+  const tabPanels = overlay.querySelectorAll<HTMLElement>("[data-settings-panel]");
+  for (const panel of tabPanels) {
+    panel.hidden = panel.dataset.settingsPanel !== tab;
+  }
+}
+
+function applySectionFocus(overlay: HTMLElement, section: SettingsOverlaySection): void {
+  const resolved = resolveSectionFocus(section);
+  activateSettingsTab(overlay, resolved.tab);
+
+  if (!resolved.anchor) {
+    return;
+  }
+
+  const target = overlay.querySelector<HTMLElement>(`[data-settings-anchor="${resolved.anchor}"]`);
+  if (!target) {
+    return;
+  }
+
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function createSectionShell(titleText: string, anchor: SettingsAnchor, hintText?: string): {
+  section: HTMLElement;
+  content: HTMLDivElement;
+} {
+  const sectionEl = document.createElement("section");
+  sectionEl.className = "pi-overlay-section pi-settings-section";
+  sectionEl.dataset.settingsAnchor = anchor;
+
+  const title = createOverlaySectionTitle(titleText);
+  sectionEl.appendChild(title);
+
+  if (hintText) {
+    const hint = document.createElement("p");
+    hint.className = "pi-overlay-hint";
+    hint.textContent = hintText;
+    sectionEl.appendChild(hint);
+  }
+
+  const content = document.createElement("div");
+  content.className = "pi-settings-section__content";
+  sectionEl.appendChild(content);
+
+  return { section: sectionEl, content };
+}
+
+function buildManagedAccessSection(): HTMLElement {
+  const shell = createSectionShell(
+    "Managed model access",
+    "providers",
+    "FloPro uses a managed OpenRouter key. End users do not need to connect providers or paste API keys.",
+  );
+
+  const card = document.createElement("div");
+  card.className = "pi-overlay-surface pi-settings-proxy-card";
+
+  const heading = document.createElement("p");
+  heading.className = "pi-overlay-hint";
+  heading.textContent = "Configured provider: OpenRouter (managed)";
+
+  const details = document.createElement("p");
+  details.className = "pi-overlay-hint";
+  details.textContent = "Use /model to choose from the curated model list.";
+
+  card.append(heading, details);
+  shell.content.appendChild(card);
+  return shell.section;
+}
+
+function buildExecutionModeSection(registerCleanup?: SettingsCleanupRegistrar): HTMLElement {
+  const shell = createSectionShell("Execution mode", "execution-mode");
+
+  const card = document.createElement("div");
+  card.className = "pi-overlay-surface pi-settings-execution-card";
+
+  const autoModeToggle = createToggleRow({
+    label: "Auto mode",
+    sublabel: "FloPro applies changes immediately without asking",
+  });
+
+  const hint = document.createElement("p");
+  hint.className = "pi-overlay-hint pi-settings-execution-hint";
+  hint.textContent = "When off, FloPro asks before each change (Confirm mode).";
+
+  card.append(autoModeToggle.root, hint);
+  shell.content.appendChild(card);
+
+  const getExecutionMode = dependencies.getExecutionMode;
+  const setExecutionMode = dependencies.setExecutionMode;
+
+  if (!getExecutionMode || !setExecutionMode) {
+    autoModeToggle.input.disabled = true;
+    return shell.section;
+  }
+
+  let currentMode = getExecutionMode();
+  autoModeToggle.input.checked = currentMode === "yolo";
+
+  autoModeToggle.input.addEventListener("change", () => {
+    const nextMode: ExecutionMode = autoModeToggle.input.checked ? "yolo" : "safe";
+    if (nextMode === currentMode) {
+      return;
+    }
+
+    autoModeToggle.input.disabled = true;
+
+    void setExecutionMode(nextMode).then(
+      () => {
+        currentMode = nextMode;
+        showToast(nextMode === "yolo" ? "Auto mode." : "Confirm mode.");
+      },
+      () => {
+        autoModeToggle.input.checked = currentMode === "yolo";
+        showToast("Couldn't update execution mode.");
+      },
+    ).finally(() => {
+      autoModeToggle.input.disabled = false;
+    });
+  });
+
+  const onExecutionModeChanged = (event: Event): void => {
+    if (!(event instanceof CustomEvent)) {
+      return;
+    }
+
+    const detail: unknown = event.detail;
+    if (!isRecord(detail)) {
+      return;
+    }
+
+    const mode = detail.mode;
+    if (mode !== "yolo" && mode !== "safe") {
+      return;
+    }
+
+    currentMode = mode;
+    autoModeToggle.input.checked = mode === "yolo";
+  };
+
+  document.addEventListener(PI_EXECUTION_MODE_CHANGED_EVENT, onExecutionModeChanged);
+  registerCleanup?.(() => {
+    document.removeEventListener(PI_EXECUTION_MODE_CHANGED_EVENT, onExecutionModeChanged);
+  });
+
+  return shell.section;
+}
+
+function buildMoreSection(registerCleanup?: SettingsCleanupRegistrar): HTMLElement {
+  const panel = document.createElement("div");
+  panel.className = "pi-settings-more";
+
+  const advanced = createSectionShell(
+    "Advanced",
+    "advanced",
+    "Power-user shortcuts for rules, backups, and keyboard shortcuts.",
+  );
+
+  const advancedActions = document.createElement("div");
+  advancedActions.className = "pi-overlay-actions pi-settings-advanced-actions";
+
+  const rulesButton = createOverlayButton({ text: "Rules & conventions…" });
+  const backupsButton = createOverlayButton({ text: "Backups…" });
+  const shortcutsButton = createOverlayButton({ text: "Keyboard shortcuts…" });
+
+  rulesButton.disabled = !dependencies.openRulesDialog;
+  backupsButton.disabled = !dependencies.openRecoveryDialog;
+  shortcutsButton.disabled = !dependencies.openShortcutsDialog;
+
+  rulesButton.addEventListener("click", () => {
+    void dependencies.openRulesDialog?.();
+  });
+  backupsButton.addEventListener("click", () => {
+    void dependencies.openRecoveryDialog?.();
+  });
+  shortcutsButton.addEventListener("click", () => {
+    dependencies.openShortcutsDialog?.();
+  });
+
+  advancedActions.append(rulesButton, backupsButton, shortcutsButton);
+  advanced.content.appendChild(advancedActions);
+
+  const experimental = createSectionShell(
+    "Experimental",
+    "experimental",
+    "Advanced and in-progress capabilities.",
+  );
+  experimental.content.appendChild(buildExperimentalFeatureContent());
+  experimental.content.appendChild(buildExperimentalFeatureFooter());
+
+  panel.append(buildExecutionModeSection(registerCleanup), advanced.section, experimental.section);
+  return panel;
+}
+
+export async function showSettingsDialog(options: ShowSettingsDialogOptions = {}): Promise<void> {
+  const existing = document.getElementById(SETTINGS_OVERLAY_ID);
+  if (existing instanceof HTMLElement) {
+    if (options.section) {
+      applySectionFocus(existing, options.section);
+      return;
+    }
+
+    closeOverlayById(SETTINGS_OVERLAY_ID);
+    return;
+  }
+
+  if (settingsDialogOpenInFlight) {
+    if (options.section) {
+      pendingSectionFocus = options.section;
+    }
+
+    await settingsDialogOpenInFlight;
+
+    const mounted = document.getElementById(SETTINGS_OVERLAY_ID);
+    if (mounted instanceof HTMLElement && options.section) {
+      applySectionFocus(mounted, options.section);
+    }
+    return;
+  }
+
+  pendingSectionFocus = options.section ?? pendingSectionFocus;
+
+  settingsDialogOpenInFlight = Promise.resolve().then(() => {
+    const dialog = createOverlayDialog({
+      overlayId: SETTINGS_OVERLAY_ID,
+      cardClassName: "pi-welcome-card pi-overlay-card pi-overlay-card--l pi-settings-dialog",
+    });
+
+    const { header } = createOverlayHeader({
+      onClose: dialog.close,
+      closeLabel: "Close settings",
+      title: "Settings",
+      subtitle: "Managed OpenRouter and preferences",
+    });
+
+    const body = document.createElement("div");
+    body.className = "pi-overlay-body pi-settings-body";
+
+    const tabs = document.createElement("div");
+    tabs.className = "pi-overlay-tabs";
+    tabs.setAttribute("role", "tablist");
+    tabs.setAttribute("aria-label", "Settings tabs");
+
+    const panels = document.createElement("div");
+    panels.className = "pi-settings-panels";
+
+    const loginsPanel = document.createElement("div");
+    loginsPanel.className = "pi-settings-panel";
+    loginsPanel.dataset.settingsPanel = "logins";
+    loginsPanel.append(buildManagedAccessSection());
+
+    const morePanel = document.createElement("div");
+    morePanel.className = "pi-settings-panel";
+    morePanel.dataset.settingsPanel = "more";
+    morePanel.appendChild(buildMoreSection(dialog.addCleanup));
+
+    panels.append(loginsPanel, morePanel);
+
+    for (const tab of SETTINGS_TABS) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "pi-overlay-tab";
+      button.textContent = tab.label;
+      button.dataset.settingsTab = tab.id;
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-selected", "false");
+      button.addEventListener("click", () => {
+        activateSettingsTab(dialog.overlay, tab.id);
+      });
+      tabs.appendChild(button);
+    }
+
+    body.append(tabs, panels);
+    dialog.card.append(header, body);
+    dialog.mount();
+
+    const initialSection = pendingSectionFocus ?? "logins";
+    pendingSectionFocus = null;
+    requestAnimationFrame(() => {
+      const mounted = document.getElementById(SETTINGS_OVERLAY_ID);
+      if (mounted instanceof HTMLElement) {
+        applySectionFocus(mounted, initialSection);
+      }
+    });
+  });
+
+  try {
+    await settingsDialogOpenInFlight;
+  } finally {
+    settingsDialogOpenInFlight = null;
+  }
+}

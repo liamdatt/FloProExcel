@@ -1,0 +1,87 @@
+/* Unified Settings overlay */
+
+.pi-settings-dialog {
+  max-height: 80vh;
+  overflow: hidden;
+}
+
+.pi-settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  max-height: min(64vh, 600px);
+  padding-right: 2px;
+}
+
+.pi-settings-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pi-settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pi-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pi-settings-section__content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pi-settings-provider-list {
+  overflow: visible;
+  max-height: none;
+}
+
+.pi-settings-proxy-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pi-settings-proxy-toggle {
+  min-height: 28px;
+}
+
+.pi-settings-proxy-url-row {
+  padding: 0 2px;
+}
+
+.pi-settings-proxy-url-row .pi-item-card__config-input {
+  max-width: 240px;
+  width: 100%;
+}
+
+.pi-settings-proxy-status,
+.pi-settings-proxy-helper,
+.pi-settings-execution-hint {
+  margin: 0;
+}
+
+.pi-settings-execution-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pi-settings-extensions-actions,
+.pi-settings-advanced-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.pi-settings-more {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

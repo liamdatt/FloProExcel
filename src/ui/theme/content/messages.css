@@ -1,0 +1,75 @@
+/* ═══════════════════════════════════════════════════════
+   11. PI-WEB-UI CONTENT OVERRIDES
+   Targeted overrides for message components at sidebar width.
+   ═══════════════════════════════════════════════════════ */
+
+/* User message — white card, right-aligned */
+user-message > div {
+  margin-left: 8px;
+  margin-right: 8px;
+  justify-content: flex-end;
+}
+
+.user-message-container {
+  background: var(--pill-bg);
+  border: var(--pill-border);
+  border-radius: var(--pill-radius);
+  box-shadow: var(--pill-shadow);
+  max-width: calc(100% - var(--pill-inset));
+  margin-left: var(--pill-inset);
+}
+
+assistant-message { margin-right: var(--pill-inset); }
+
+/* Added by applyMessageStyleHooks() so we don't depend on utility classes. */
+.pi-assistant-body {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+/* Indent prose so it aligns with pill header text. */
+.pi-assistant-body > markdown-block {
+  margin-left: var(--pill-text-indent);
+}
+
+/* ── Markdown heading scale (sidebar-appropriate) ───────────── */
+
+.pi-assistant-body h1 {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 16px 0 8px;
+}
+
+.pi-assistant-body h2 {
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 14px 0 6px;
+}
+
+.pi-assistant-body h3 {
+  font-size: var(--text-base);
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 12px 0 4px;
+}
+
+.pi-assistant-body h4,
+.pi-assistant-body h5,
+.pi-assistant-body h6 {
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 10px 0 4px;
+}
+
+.pi-assistant-body h1:first-child,
+.pi-assistant-body h2:first-child,
+.pi-assistant-body h3:first-child,
+.pi-assistant-body h4:first-child,
+.pi-assistant-body h5:first-child,
+.pi-assistant-body h6:first-child {
+  margin-top: 0;
+}
+
