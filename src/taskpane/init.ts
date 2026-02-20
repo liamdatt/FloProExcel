@@ -175,7 +175,9 @@ export async function initTaskpane(opts: {
   setActiveProviders(new Set(availableProviders));
   const defaultModel = pickDefaultModel(availableProviders);
 
-  const streamFn = createOfficeStreamFn(() => Promise.resolve("/api/openrouter/v1"));
+  const streamFn = createOfficeStreamFn(
+    () => Promise.resolve(new URL("/api/openrouter/v1", window.location.origin).toString()),
+  );
 
   const workbookCoordinator = createWorkbookCoordinator();
 

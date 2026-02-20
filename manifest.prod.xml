@@ -12,16 +12,16 @@
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="FloPro Financial Modelling" />
   <Description DefaultValue="Managed OpenRouter financial modelling sidebar add-in for Excel." />
-  <IconUrl DefaultValue="https://pi-for-excel.vercel.app/assets/icon-32.png" />
-  <HighResolutionIconUrl DefaultValue="https://pi-for-excel.vercel.app/assets/icon-80.png" />
-  <SupportUrl DefaultValue="https://github.com/tmustier/pi-for-excel" />
+  <IconUrl DefaultValue="https://excel.floproja.com/assets/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://excel.floproja.com/assets/icon-80.png" />
+  <SupportUrl DefaultValue="https://github.com/tmustier/pi-for-excel/issues/new/choose" />
 
   <Hosts>
     <Host Name="Workbook" />
   </Hosts>
 
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://pi-for-excel.vercel.app/src/taskpane.html" />
+    <SourceLocation DefaultValue="https://excel.floproja.com/src/taskpane.html" />
   </DefaultSettings>
 
   <Permissions>ReadWriteDocument</Permissions>
@@ -64,12 +64,12 @@
 
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon16" DefaultValue="https://pi-for-excel.vercel.app/assets/icon-16.png" />
-        <bt:Image id="Icon32" DefaultValue="https://pi-for-excel.vercel.app/assets/icon-32.png" />
-        <bt:Image id="Icon80" DefaultValue="https://pi-for-excel.vercel.app/assets/icon-80.png" />
+        <bt:Image id="Icon16" DefaultValue="https://excel.floproja.com/assets/icon-16.png" />
+        <bt:Image id="Icon32" DefaultValue="https://excel.floproja.com/assets/icon-32.png" />
+        <bt:Image id="Icon80" DefaultValue="https://excel.floproja.com/assets/icon-80.png" />
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="TaskpaneUrl" DefaultValue="https://pi-for-excel.vercel.app/src/taskpane.html" />
+        <bt:Url id="TaskpaneUrl" DefaultValue="https://excel.floproja.com/src/taskpane.html" />
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="GroupLabel" DefaultValue="FloPro" />

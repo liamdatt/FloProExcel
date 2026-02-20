@@ -22,14 +22,52 @@ import {
 
 export type GetOpenRouterBaseUrl = () => Promise<string>;
 
-function normalizeManagedBaseUrl(raw: string): string {
+interface NormalizeManagedBaseUrlOptions {
+  browserOrigin?: string | null;
+}
+
+function resolveBrowserOrigin(): string | null {
+  if (typeof window === "undefined" || !window.location) {
+    return null;
+  }
+
+  const origin = window.location.origin;
+  if (typeof origin !== "string") {
+    return null;
+  }
+
+  const trimmed = origin.trim();
+  if (trimmed.length === 0 || trimmed === "null") {
+    return null;
+  }
+
+  return trimmed;
+}
+
+export function normalizeManagedBaseUrl(
+  raw: string,
+  options: NormalizeManagedBaseUrlOptions = {},
+): string {
   const trimmed = raw.trim();
   if (trimmed.length === 0) {
     throw new Error("Managed OpenRouter base URL is empty.");
   }
 
   if (trimmed.startsWith("/")) {
-    return trimmed.replace(/\/+$/u, "");
+    const browserOrigin = options.browserOrigin ?? resolveBrowserOrigin();
+    if (!browserOrigin) {
+      throw new Error(
+        "Managed OpenRouter same-origin path requires a browser origin (window.location.origin).",
+      );
+    }
+
+    const parsedOrigin = new URL(browserOrigin);
+    if (parsedOrigin.protocol !== "http:" && parsedOrigin.protocol !== "https:") {
+      throw new Error("Managed OpenRouter browser origin must use http:// or https://.");
+    }
+
+    const absolute = new URL(trimmed, parsedOrigin.toString());
+    return absolute.toString().replace(/\/+$/u, "");
   }
 
   const parsed = new URL(trimmed);
