@@ -30,9 +30,15 @@ const schema = Type.Object({
   tool: Type.Optional(Type.String({
     description: "Tool name to call.",
   })),
-  args: Type.Optional(Type.String({
-    description: "Tool arguments as a JSON string.",
-  })),
+  args: Type.Optional(Type.Union([
+    Type.String({
+      description: "Tool arguments as a JSON string.",
+    }),
+    Type.Object({}, {
+      additionalProperties: true,
+      description: "Tool arguments as an object.",
+    }),
+  ])),
   connect: Type.Optional(Type.String({
     description: "Server name/id to connect and refresh.",
   })),
@@ -80,6 +86,10 @@ export interface McpGatewayDetails {
   proxied?: boolean;
   proxyBaseUrl?: string;
   resultPreview?: string;
+  retryApplied?: boolean;
+  rpcMethod?: string;
+  durationMs?: number;
+  errorCode?: number;
   error?: string;
 }
 
@@ -100,6 +110,16 @@ export interface McpToolDependencies {
   }) => Promise<RpcCallResult | null>;
 }
 
+class McpRpcError extends Error {
+  readonly code?: number;
+
+  constructor(message: string, code?: number) {
+    super(message);
+    this.name = "McpRpcError";
+    this.code = code;
+  }
+}
+
 function normalizeOptionalString(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
@@ -116,8 +136,12 @@ function parseParams(raw: unknown): Params {
   const tool = normalizeOptionalString(raw.tool);
   if (tool) params.tool = tool;
 
-  const args = normalizeOptionalString(raw.args);
-  if (args) params.args = args;
+  if (typeof raw.args === "string") {
+    const args = normalizeOptionalString(raw.args);
+    if (args) params.args = args;
+  } else if (isRecord(raw.args)) {
+    params.args = raw.args;
+  }
 
   const connect = normalizeOptionalString(raw.connect);
   if (connect) params.connect = connect;
@@ -186,16 +210,19 @@ function parseToolListResult(server: McpServerConfig, value: unknown): McpToolDe
   return out;
 }
 
-function parseJsonRpcError(value: unknown): string | null {
+function parseJsonRpcError(value: unknown): { message: string; code?: number } | null {
   if (!isRecord(value)) return null;
 
   if (isRecord(value.error)) {
     const errorMessage = normalizeOptionalString(value.error.message);
-    if (errorMessage) return errorMessage;
+    if (errorMessage) {
+      const code = typeof value.error.code === "number" ? value.error.code : undefined;
+      return { message: errorMessage, code };
+    }
   }
 
   const text = normalizeOptionalString(value.message);
-  return text ?? null;
+  return text ? { message: text } : null;
 }
 
 function extractTextContentBlocks(value: unknown): string[] {
@@ -221,14 +248,22 @@ function formatJson(value: unknown): string {
   }
 }
 
-function parseCallArgs(rawArgs: string | undefined): unknown {
-  if (!rawArgs) return {};
+function parseCallArgs(rawArgs: unknown): unknown {
+  if (rawArgs === undefined) return {};
 
-  try {
-    return JSON.parse(rawArgs);
-  } catch {
-    throw new Error("mcp.args must be valid JSON.");
+  if (typeof rawArgs === "string") {
+    try {
+      return JSON.parse(rawArgs);
+    } catch {
+      throw new Error("mcp.args must be valid JSON.");
+    }
   }
+
+  if (isRecord(rawArgs)) {
+    return rawArgs;
+  }
+
+  throw new Error("mcp.args must be a JSON string or an object.");
 }
 
 function buildServerStatusLine(server: McpServerConfig, tools: McpToolDescriptor[] | null): string {
@@ -283,6 +318,85 @@ function matchesSearch(tool: McpToolDescriptor, query: string): boolean {
   if (tokens.length === 0) return true;
 
   return tokens.some((token) => haystack.includes(token));
+}
+
+function buildToolCallResultText(payload: unknown): string {
+  if (isRecord(payload) && isRecord(payload.result)) {
+    const rpcResult = payload.result;
+    const contentBlocks = extractTextContentBlocks(rpcResult.content);
+    const hasStructuredContent = rpcResult.structuredContent !== undefined;
+    const sections: string[] = [];
+
+    if (contentBlocks.length > 0) {
+      sections.push(["Summary:", contentBlocks.join("\n\n")].join("\n"));
+    }
+
+    if (hasStructuredContent) {
+      sections.push([
+        "Structured content:",
+        "```json",
+        formatJson(rpcResult.structuredContent),
+        "```",
+      ].join("\n"));
+    }
+
+    if (sections.length === 0) {
+      return ["```json", formatJson(rpcResult), "```"].join("\n");
+    }
+
+    return sections.join("\n\n");
+  }
+
+  return ["```json", formatJson(payload), "```"].join("\n");
+}
+
+function getRpcErrorCode(error: unknown): number | undefined {
+  if (error instanceof McpRpcError) {
+    return error.code;
+  }
+
+  return undefined;
+}
+
+function isRecoverableToolCallError(error: unknown): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+
+  return (
+    message.includes("tool not found")
+    || message.includes("method not found")
+    || message.includes("unknown tool")
+    || message.includes("stale")
+    || message.includes("no response")
+    || message.includes("not available")
+  );
+}
+
+function withMcpRemediationHint(message: string, operation: string): string {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("unknown mcp server")) {
+    return `${message} Tip: run \`mcp\` with no params to list configured servers and IDs.`;
+  }
+
+  if (operation === "tool") {
+    if (normalized.includes("available on multiple servers")) {
+      return `${message} Tip: include the \`server\` parameter to disambiguate.`;
+    }
+
+    if (normalized.includes("tool not found") || normalized.includes("unknown tool")) {
+      return `${message} Tip: run \`search\` first, then \`describe\`, before calling \`tool\`.`;
+    }
+  }
+
+  if (operation === "server" && normalized.includes("unknown mcp server")) {
+    return `${message} Tip: run \`mcp\` with no params to list configured servers.`;
+  }
+
+  if (normalized.includes("disabled")) {
+    return `${message} Enable it in ${integrationsCommandHint()}.`;
+  }
+
+  return message;
 }
 
 async function defaultGetRuntimeConfig(): Promise<McpRuntimeConfig> {
@@ -370,7 +484,7 @@ async function defaultCallJsonRpc(args: {
 
       const rpcError = parseJsonRpcError(payload);
       if (rpcError) {
-        throw new Error(rpcError);
+        throw new McpRpcError(rpcError.message, rpcError.code);
       }
 
       if (!isRecord(payload)) {
@@ -480,7 +594,9 @@ export function createMcpTool(
     name: "mcp",
     label: "MCP Gateway",
     description:
-      "Connect to configured MCP servers, discover tools, and call MCP tools.",
+      "Connect to configured MCP servers, discover tools, and call MCP tools. "
+      + "Examples: {search:\"price\"}, {describe:\"tool_name\"}, "
+      + "{tool:\"tool_name\", server:\"server_id\", args:{...}}",
     parameters: schema,
     execute: async (
       _toolCallId: string,
@@ -488,6 +604,10 @@ export function createMcpTool(
       signal: AbortSignal | undefined,
     ): Promise<AgentToolResult<McpGatewayDetails>> => {
       const params = parseParams(rawParams);
+      let retryApplied = false;
+      let rpcMethod: string | undefined;
+      let durationMs: number | undefined;
+      let rpcErrorCode: number | undefined;
 
       try {
         const runtimeConfig = await getRuntimeConfig();
@@ -555,7 +675,10 @@ export function createMcpTool(
           const matched = allTools.filter((tool) => tool.name === params.tool);
 
           if (matched.length === 0) {
-            throw new Error(`MCP tool not found: ${params.tool}`);
+            throw new Error(
+              `MCP tool not found: ${params.tool}. `
+              + "Use `search` first to discover available tools, then `describe` to inspect inputs.",
+            );
           }
 
           if (!params.server) {
@@ -571,38 +694,50 @@ export function createMcpTool(
           const targetTool = matched[0];
           const targetServer = resolveSingleServer(targetTool.serverId);
           const parsedArgs = parseCallArgs(params.args);
+          rpcMethod = "tools/call";
 
-          const callResult = await callJsonRpc({
-            server: targetServer,
-            method: "tools/call",
-            params: {
-              name: targetTool.name,
-              arguments: parsedArgs,
-            },
-            signal,
-            proxyBaseUrl: runtimeConfig.proxyBaseUrl,
-          });
+          const callTool = async (): Promise<RpcCallResult> => {
+            const callResult = await callJsonRpc({
+              server: targetServer,
+              method: "tools/call",
+              params: {
+                name: targetTool.name,
+                arguments: parsedArgs,
+              },
+              signal,
+              proxyBaseUrl: runtimeConfig.proxyBaseUrl,
+            });
 
-          if (!callResult) {
-            throw new Error("MCP tools/call returned no response.");
-          }
-
-          const payload = callResult.result;
-          let resultText = "";
-
-          if (isRecord(payload) && isRecord(payload.result)) {
-            const rpcResult = payload.result;
-            const contentBlocks = extractTextContentBlocks(rpcResult.content);
-            if (contentBlocks.length > 0) {
-              resultText = contentBlocks.join("\n\n");
-            } else if (rpcResult.structuredContent !== undefined) {
-              resultText = `\`\`\`json\n${formatJson(rpcResult.structuredContent)}\n\`\`\``;
-            } else {
-              resultText = `\`\`\`json\n${formatJson(rpcResult)}\n\`\`\``;
+            if (!callResult) {
+              throw new Error("MCP tools/call returned no response.");
             }
-          } else {
-            resultText = `\`\`\`json\n${formatJson(payload)}\n\`\`\``;
+
+            return callResult;
+          };
+
+          const startedAt = Date.now();
+          let callResult: RpcCallResult;
+          try {
+            callResult = await callTool();
+          } catch (error: unknown) {
+            rpcErrorCode = getRpcErrorCode(error);
+            if (!isRecoverableToolCallError(error)) {
+              throw error;
+            }
+
+            retryApplied = true;
+            await ensureServerTools({
+              server: targetServer,
+              proxyBaseUrl: runtimeConfig.proxyBaseUrl,
+              signal,
+              refresh: true,
+            });
+            callResult = await callTool();
           }
+
+          durationMs = Math.max(0, Date.now() - startedAt);
+          const payload = callResult.result;
+          const resultText = buildToolCallResultText(payload);
 
           const text = [
             "MCP tool call",
@@ -612,6 +747,8 @@ export function createMcpTool(
             "```json",
             formatJson(parsedArgs),
             "```",
+            "",
+            retryApplied ? "Recovery: automatic refresh retry applied once." : "Recovery: no retry needed.",
             "",
             "Result:",
             resultText,
@@ -628,6 +765,10 @@ export function createMcpTool(
               proxied: callResult.proxied,
               proxyBaseUrl: callResult.proxyBaseUrl,
               resultPreview: firstLine(resultText),
+              retryApplied,
+              rpcMethod,
+              durationMs,
+              errorCode: rpcErrorCode,
             },
           };
         }
@@ -769,8 +910,6 @@ export function createMcpTool(
           },
         };
       } catch (error: unknown) {
-        const message = getErrorMessage(error);
-
         const operation = params.tool
           ? "tool"
           : params.connect
@@ -782,6 +921,11 @@ export function createMcpTool(
                 : params.server
                   ? "server"
                   : "status";
+        const rawMessage = getErrorMessage(error);
+        const message = withMcpRemediationHint(rawMessage, operation);
+        if (rpcErrorCode === undefined) {
+          rpcErrorCode = getRpcErrorCode(error);
+        }
 
         return {
           content: [{ type: "text", text: `Error: ${message}` }],
@@ -791,6 +935,10 @@ export function createMcpTool(
             operation,
             server: params.server ?? params.connect,
             tool: params.tool ?? params.describe,
+            retryApplied,
+            rpcMethod,
+            durationMs,
+            errorCode: rpcErrorCode,
             error: message,
           },
         };

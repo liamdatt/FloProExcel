@@ -297,6 +297,23 @@ export interface McpGatewayDetails {
   proxied?: boolean;
   proxyBaseUrl?: string;
   resultPreview?: string;
+  retryApplied?: boolean;
+  rpcMethod?: string;
+  durationMs?: number;
+  errorCode?: number;
+  error?: string;
+}
+
+export interface JamaicaMarketDetails {
+  kind: "jamaica_market";
+  ok: boolean;
+  action: string;
+  toolName?: string;
+  rpcMethod?: string;
+  durationMs?: number;
+  errorCode?: number;
+  retryApplied?: boolean;
+  resultPreview?: string;
   error?: string;
 }
 
@@ -384,6 +401,7 @@ export type ExcelToolDetails =
   | WebSearchDetails
   | FetchPageDetails
   | McpGatewayDetails
+  | JamaicaMarketDetails
   | FilesToolDetails;
 
 function isOptionalString(value: unknown): value is string | undefined {
@@ -890,6 +908,27 @@ export function isMcpGatewayDetails(value: unknown): value is McpGatewayDetails 
     isOptionalString(value.tool) &&
     isOptionalBoolean(value.proxied) &&
     isOptionalString(value.proxyBaseUrl) &&
+    isOptionalString(value.resultPreview) &&
+    isOptionalBoolean(value.retryApplied) &&
+    isOptionalString(value.rpcMethod) &&
+    isOptionalNumber(value.durationMs) &&
+    isOptionalNumber(value.errorCode) &&
+    isOptionalString(value.error)
+  );
+}
+
+export function isJamaicaMarketDetails(value: unknown): value is JamaicaMarketDetails {
+  if (!isRecord(value)) return false;
+  if (value.kind !== "jamaica_market") return false;
+
+  return (
+    typeof value.ok === "boolean" &&
+    typeof value.action === "string" &&
+    isOptionalString(value.toolName) &&
+    isOptionalString(value.rpcMethod) &&
+    isOptionalNumber(value.durationMs) &&
+    isOptionalNumber(value.errorCode) &&
+    isOptionalBoolean(value.retryApplied) &&
     isOptionalString(value.resultPreview) &&
     isOptionalString(value.error)
   );

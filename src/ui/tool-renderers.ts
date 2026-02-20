@@ -993,6 +993,19 @@ function describeToolCall(
       const url = p.url as string | undefined;
       return { action: "Fetch page", detail: url ?? "url" };
     }
+    case "jamaica_market": {
+      const action = p.action as string | undefined;
+      const symbol = p.symbol as string | undefined;
+      if (!action) {
+        return { action: "Jamaica market", detail: "managed query" };
+      }
+
+      if (symbol) {
+        return { action: "Jamaica market", detail: `${action} (${symbol})` };
+      }
+
+      return { action: "Jamaica market", detail: action };
+    }
     case "mcp": {
       if (typeof p.tool === "string") {
         return { action: "MCP call", detail: p.tool };

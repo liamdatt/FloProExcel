@@ -51,6 +51,7 @@ void test("UI tool registration derives from centralized UI metadata", async () 
   assert.equal(uniqueNames.size, UI_TOOL_NAMES.length);
   assert.ok(UI_TOOL_NAMES.includes("execute_office_js"));
   assert.ok(UI_TOOL_NAMES.includes("model_quality_check"));
+  assert.ok(UI_TOOL_NAMES.includes("jamaica_market"));
 });
 
 void test("UI metadata drives renderer and humanizer tool subsets", () => {

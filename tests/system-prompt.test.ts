@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import { buildSystemPrompt } from "../src/prompt/system-prompt.ts";
 import { resolveConventions } from "../src/conventions/store.ts";
+import { buildIntegrationPromptEntries } from "../src/integrations/catalog.ts";
 
 void test("system prompt includes default placeholders when instructions are absent", () => {
   const prompt = buildSystemPrompt();
@@ -198,4 +199,14 @@ void test("system prompt renders active integrations with Agent Skill mapping", 
   assert.match(prompt, /## Active Integrations/);
   assert.match(prompt, /### Web Search/);
   assert.match(prompt, /Agent Skill mapping: `web-search`/);
+});
+
+void test("system prompt integration guidance prefers jamaica_market for JSE data", () => {
+  const entries = buildIntegrationPromptEntries(["mcp_tools"]);
+  const prompt = buildSystemPrompt({
+    activeIntegrations: entries,
+  });
+
+  assert.match(prompt, /jamaica_market/);
+  assert.match(prompt, /Use mcp for custom or non-managed servers/i);
 });

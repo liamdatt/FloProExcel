@@ -560,6 +560,11 @@ function renderManagedMcpServerCard(
 
   card.body.appendChild(createConfigRow("URL", createConfigValue(server.url)));
   card.body.appendChild(createConfigRow("Auth", createConfigValue("Managed by FloPro backend")));
+  card.body.appendChild(createConfigRow("Preferred tool path", createConfigValue("jamaica_market")));
+  card.body.appendChild(createConfigRow(
+    "Operations",
+    createConfigValue("list_companies, get_company, get_statement, get_all_statements, get_price_data"),
+  ));
 
   const enabledRow = document.createElement("div");
   enabledRow.className = "pi-item-card__config-row";
@@ -589,13 +594,23 @@ function renderManagedMcpServerCard(
     compact: true,
     onClick: () => {
       if (isBusy()) return;
+      if (!server.enabled) {
+        showToast(`${server.name}: disabled. Enable it, then retest.`);
+        return;
+      }
       void (async () => {
         try {
           const result = await probeMcpServer(server, settings);
           const transport = result.proxied ? "proxy" : "direct";
-          showToast(`${server.name}: reachable (${result.toolCount} tool${result.toolCount === 1 ? "" : "s"}, ${transport})`);
+          showToast(
+            `${server.name}: reachable (${result.toolCount} tool${result.toolCount === 1 ? "" : "s"}, ${transport}). `
+            + "Next: use `jamaica_market` in chat for managed data calls.",
+          );
         } catch (err: unknown) {
-          showToast(`${server.name}: ${err instanceof Error ? err.message : String(err)}`);
+          showToast(
+            `${server.name}: ${err instanceof Error ? err.message : String(err)}. `
+            + "Check /healthz and ensure this managed server is enabled.",
+          );
         }
       })();
     },

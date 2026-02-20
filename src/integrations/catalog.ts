@@ -9,6 +9,7 @@
 import type { AgentTool } from "@mariozechner/pi-agent-core";
 
 import { createMcpTool } from "../tools/mcp.js";
+import { createJamaicaMarketTool } from "../tools/jamaica-market.js";
 import { createFetchPageTool } from "../tools/fetch-page.js";
 import { createWebSearchTool } from "../tools/web-search.js";
 
@@ -60,11 +61,12 @@ const INTEGRATION_DEFINITIONS: Record<IntegrationId, IntegrationDefinition> = {
     agentSkillName: "mcp-gateway",
     enabledByDefault: true,
     warning: "External tools: MCP servers may execute arbitrary remote actions.",
-    toolNames: ["mcp"],
+    toolNames: ["jamaica_market", "mcp"],
     instructions:
-      "Use the mcp tool only when a configured external capability is needed. "
-      + "Prefer listing/describing tools before invoking them, and clearly state which server/tool was used.",
-    createTools: () => [createMcpTool()],
+      "For Jamaican market data, prefer the jamaica_market tool first (managed, deterministic actions). "
+      + "Use mcp for custom or non-managed servers. "
+      + "When using mcp, prefer search/describe before tool calls and clearly state which server/tool was used.",
+    createTools: () => [createJamaicaMarketTool(), createMcpTool()],
   },
 };
 

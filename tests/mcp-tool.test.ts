@@ -67,6 +67,9 @@ function createMockMcpTool() {
                   text: "echo: hello",
                 },
               ],
+              structuredContent: {
+                echoed: "hello",
+              },
             },
           },
           proxied: false,
@@ -107,9 +110,23 @@ void test("mcp tool call includes attribution and arguments", async () => {
   assert.match(text, /tool: echo/);
   assert.match(text, /"text": "hello"/);
   assert.match(text, /echo: hello/);
+  assert.match(text, /Structured content:/);
+  assert.match(text, /"echoed": "hello"/);
 
   const toolCall = calls.find((call) => call.method === "tools/call");
   assert.ok(toolCall);
+});
+
+void test("mcp tool call accepts args as object", async () => {
+  const { tool } = createMockMcpTool();
+
+  const result = await tool.execute("call-obj", {
+    tool: "echo",
+    args: { text: "hello" },
+  });
+
+  const text = result.content[0]?.type === "text" ? result.content[0].text : "";
+  assert.match(text, /"text": "hello"/);
 });
 
 void test("mcp tool call requires server when tool name is ambiguous", async () => {
@@ -179,4 +196,79 @@ void test("mcp tool call requires server when tool name is ambiguous", async () 
 
   assert.match(text, /available on multiple servers.*specify the server parameter/i);
   assert.equal(callInvoked, false);
+});
+
+void test("mcp tool call retries once on recoverable tool-call failure", async () => {
+  const calls: Array<{ method: string; params?: unknown }> = [];
+  let toolCallAttempts = 0;
+
+  const tool = createMcpTool({
+    getRuntimeConfig: () => Promise.resolve({
+      servers: [TEST_SERVER],
+      proxyBaseUrl: undefined,
+    }),
+    callJsonRpc: ({ method, params }) => {
+      calls.push({ method, params });
+
+      if (method === "initialize") {
+        return Promise.resolve({
+          result: { result: { protocolVersion: "2025-03-26" } },
+          proxied: false,
+        });
+      }
+
+      if (method === "notifications/initialized") {
+        return Promise.resolve({
+          result: null,
+          proxied: false,
+        });
+      }
+
+      if (method === "tools/list") {
+        return Promise.resolve({
+          result: {
+            result: {
+              tools: [
+                {
+                  name: "echo",
+                  description: "Echo input text",
+                  inputSchema: { type: "object" },
+                },
+              ],
+            },
+          },
+          proxied: false,
+        });
+      }
+
+      if (method === "tools/call") {
+        toolCallAttempts += 1;
+        if (toolCallAttempts === 1) {
+          throw new Error("Method not found: tools/call");
+        }
+        return Promise.resolve({
+          result: {
+            result: {
+              content: [{ type: "text", text: "ok after retry" }],
+            },
+          },
+          proxied: false,
+        });
+      }
+
+      throw new Error(`Unexpected method: ${method}`);
+    },
+  });
+
+  const result = await tool.execute("call-retry", {
+    tool: "echo",
+    args: { text: "hello" },
+  });
+
+  const text = result.content[0]?.type === "text" ? result.content[0].text : "";
+  assert.match(text, /automatic refresh retry applied once/i);
+  assert.equal(toolCallAttempts, 2);
+
+  const initializeCalls = calls.filter((call) => call.method === "initialize");
+  assert.equal(initializeCalls.length, 2);
 });

@@ -854,6 +854,48 @@ function humanizeMcp(p: Record<string, unknown>): ParamItem[] {
   return items;
 }
 
+function humanizeJamaicaMarket(p: Record<string, unknown>): ParamItem[] {
+  const items: ParamItem[] = [];
+
+  if (p.action) {
+    items.push({ label: "Action", value: str(p.action) });
+  }
+
+  if (p.symbol) {
+    items.push({ label: "Symbol", value: str(p.symbol) });
+  }
+
+  if (p.frequency) {
+    items.push({ label: "Frequency", value: str(p.frequency) });
+  }
+
+  if (p.statement_type) {
+    items.push({ label: "Statement", value: str(p.statement_type) });
+  }
+
+  if (p.year !== undefined) {
+    items.push({ label: "Year", value: str(p.year) });
+  }
+
+  if (p.years !== undefined) {
+    items.push({ label: "Years", value: str(p.years) });
+  }
+
+  if (p.start_date) {
+    items.push({ label: "Start date", value: str(p.start_date) });
+  }
+
+  if (p.end_date) {
+    items.push({ label: "End date", value: str(p.end_date) });
+  }
+
+  if (p.limit !== undefined) {
+    items.push({ label: "Limit", value: str(p.limit) });
+  }
+
+  return items;
+}
+
 function humanizeFiles(p: Record<string, unknown>): ParamItem[] {
   const items: ParamItem[] = [];
   const action = str(p.action);
@@ -999,6 +1041,7 @@ const CORE_HUMANIZERS = {
 const EXTRA_HUMANIZERS = {
   web_search: humanizeWebSearch,
   fetch_page: humanizeFetchPage,
+  jamaica_market: humanizeJamaicaMarket,
   mcp: humanizeMcp,
   files: humanizeFiles,
   python_transform_range: humanizePythonTransformRange,
