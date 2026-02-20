@@ -33,6 +33,8 @@ export interface SystemPromptOptions {
   executionMode?: ExecutionMode;
   /** Resolved conventions (defaults merged with stored). Omit to skip convention diff section. */
   conventions?: ResolvedConventions | null;
+  /** If true, preserve established workbook template patterns over global defaults. */
+  templateMode?: boolean;
 }
 
 function renderInstructionValue(value: string | null | undefined, fallback: string): string {
@@ -165,6 +167,7 @@ export function buildSystemPrompt(opts: SystemPromptOptions = {}): string {
   sections.push(WORKSPACE);
   sections.push(WORKFLOW);
   sections.push(CONVENTIONS);
+  sections.push(buildTemplateModeSection(opts.templateMode));
 
   const customPresetSection = buildCustomPresetSection(opts.conventions);
   if (customPresetSection) {
@@ -177,6 +180,26 @@ export function buildSystemPrompt(opts: SystemPromptOptions = {}): string {
   }
 
   return sections.join("\n\n");
+}
+
+function buildTemplateModeSection(templateMode: boolean | undefined): string {
+  const enabled = templateMode === true;
+
+  if (enabled) {
+    return `## Template Mode
+
+templateMode=true
+- The active workbook appears to have established style/template conventions.
+- Preserve existing workbook formatting, style hierarchy, and modeling patterns.
+- Existing workbook conventions override global defaults and generic standards.`;
+  }
+
+  return `## Template Mode
+
+templateMode=false
+- No strong existing template pattern detected.
+- Apply global financial modeling standards and configured conventions by default.
+- If the user asks for a specific style, follow the user instruction.`;
 }
 
 function buildCustomPresetSection(
@@ -292,6 +315,7 @@ Custom presets (if configured) are valid style names in \`style\` and \`number_f
 For dates or edge cases, raw Excel format strings in \`number_format\` are supported.
 
 ### Other formatting defaults
-- **Number font colors:** black/automatic = formula; blue #0000FF = hardcoded value; green #008000 = link to other sheet.
+- **Number/font colors:** blue #0000FF = hardcoded value; black #000000 = formulas; green #008000 = same-workbook links; red #FF0000 = external links.
+- **Assumption highlight:** yellow fill #FFFF00 for key assumptions unless the workbook template already uses a different convention.
 - **Header style:** configurable via conventions (fill/font/bold/wrap).
 - **Default font:** configurable via conventions (font name + size).`;

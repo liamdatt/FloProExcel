@@ -282,9 +282,24 @@ function normalizeColorConventions(raw: unknown): StoredColorConventions | undef
     result.hardcodedValueColor = hardcoded;
   }
 
+  const formula = normalizeConventionColor(raw.formulaColor);
+  if (formula) {
+    result.formulaColor = formula;
+  }
+
   const crossSheet = normalizeConventionColor(raw.crossSheetLinkColor);
   if (crossSheet) {
     result.crossSheetLinkColor = crossSheet;
+  }
+
+  const external = normalizeConventionColor(raw.externalLinkColor);
+  if (external) {
+    result.externalLinkColor = external;
+  }
+
+  const assumptionFill = normalizeConventionColor(raw.assumptionFillColor);
+  if (assumptionFill) {
+    result.assumptionFillColor = assumptionFill;
   }
 
   return Object.keys(result).length > 0 ? result : undefined;
@@ -399,8 +414,14 @@ export function resolveConventions(stored: StoredConventions): ResolvedConventio
     colorConventions: {
       hardcodedValueColor: normalized.colorConventions?.hardcodedValueColor
         ?? DEFAULT_COLOR_CONVENTIONS.hardcodedValueColor,
+      formulaColor: normalized.colorConventions?.formulaColor
+        ?? DEFAULT_COLOR_CONVENTIONS.formulaColor,
       crossSheetLinkColor: normalized.colorConventions?.crossSheetLinkColor
         ?? DEFAULT_COLOR_CONVENTIONS.crossSheetLinkColor,
+      externalLinkColor: normalized.colorConventions?.externalLinkColor
+        ?? DEFAULT_COLOR_CONVENTIONS.externalLinkColor,
+      assumptionFillColor: normalized.colorConventions?.assumptionFillColor
+        ?? DEFAULT_COLOR_CONVENTIONS.assumptionFillColor,
     },
     headerStyle: {
       fillColor: normalized.headerStyle?.fillColor ?? DEFAULT_HEADER_STYLE.fillColor,
@@ -525,11 +546,35 @@ export function diffFromDefaults(resolved: ResolvedConventions): ConventionDiff[
     });
   }
 
+  if (resolved.colorConventions.formulaColor !== DEFAULT_COLOR_CONVENTIONS.formulaColor) {
+    diffs.push({
+      field: "colorConventions.formulaColor",
+      label: "Formula font color",
+      value: resolved.colorConventions.formulaColor,
+    });
+  }
+
   if (resolved.colorConventions.crossSheetLinkColor !== DEFAULT_COLOR_CONVENTIONS.crossSheetLinkColor) {
     diffs.push({
       field: "colorConventions.crossSheetLinkColor",
       label: "Cross-sheet link font color",
       value: resolved.colorConventions.crossSheetLinkColor,
+    });
+  }
+
+  if (resolved.colorConventions.externalLinkColor !== DEFAULT_COLOR_CONVENTIONS.externalLinkColor) {
+    diffs.push({
+      field: "colorConventions.externalLinkColor",
+      label: "External-link font color",
+      value: resolved.colorConventions.externalLinkColor,
+    });
+  }
+
+  if (resolved.colorConventions.assumptionFillColor !== DEFAULT_COLOR_CONVENTIONS.assumptionFillColor) {
+    diffs.push({
+      field: "colorConventions.assumptionFillColor",
+      label: "Assumption fill color",
+      value: resolved.colorConventions.assumptionFillColor,
     });
   }
 

@@ -5,6 +5,7 @@
 import { commandRegistry, type SlashCommand } from "../types.js";
 
 import { createModelCommands, type ActiveAgentProvider } from "./model.js";
+import { createModelingCommands } from "./modeling.js";
 import { createSettingsCommands, type SettingsCommandActions } from "./settings.js";
 import { createExperimentalCommands } from "./experimental.js";
 import { createDebugCommands } from "./debug.js";
@@ -34,6 +35,7 @@ export function registerBuiltins(context: BuiltinsContext): void {
   // Keep registration order stable: this is the order shown in the command menu.
   const builtins: SlashCommand[] = [
     ...createModelCommands(context.getActiveAgent),
+    ...createModelingCommands(context.getActiveAgent),
     ...createSettingsCommands(context),
     ...createAddonsCommands(context),
     ...createIntegrationsCommands(context),

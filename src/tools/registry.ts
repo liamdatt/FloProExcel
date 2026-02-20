@@ -20,6 +20,7 @@ import { createFormatCellsTool } from "./format-cells.js";
 import { createConditionalFormatTool } from "./conditional-format.js";
 import { createTraceDependenciesTool } from "./trace-dependencies.js";
 import { createExplainFormulaTool } from "./explain-formula.js";
+import { createModelQualityCheckTool } from "./model-quality-check.js";
 import { createViewSettingsTool } from "./view-settings.js";
 import { createCommentsTool } from "./comments.js";
 import { createInstructionsTool } from "./instructions.js";
@@ -54,6 +55,7 @@ export function createCoreTools(options: CreateCoreToolsOptions = {}): AnyCoreTo
     createConditionalFormatTool(),
     createTraceDependenciesTool(),
     createExplainFormulaTool(),
+    createModelQualityCheckTool(),
     createViewSettingsTool(),
     createCommentsTool(),
     createInstructionsTool(),

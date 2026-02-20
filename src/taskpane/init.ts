@@ -56,6 +56,7 @@ import {
   type ExecutionMode,
 } from "../execution/mode.js";
 import { getResolvedConventions } from "../conventions/store.js";
+import { detectTemplateProfile } from "../format/template-profile.js";
 import {
   buildIntegrationPromptEntries,
   createToolsForIntegrations,
@@ -78,6 +79,7 @@ import { loadDiscoverableAgentSkillsFromWorkspace } from "../skills/external-sto
 import { PI_SKILLS_CHANGED_EVENT } from "../skills/events.js";
 import { createSkillReadCache } from "../skills/read-cache.js";
 import { initAppStorage } from "../storage/init-app-storage.js";
+import { seedFinancialModelingStandardsIfEmpty } from "../standards/financial-modeling-profile.js";
 import { renderError } from "../ui/loading.js";
 import { showFilesWorkspaceDialog } from "../ui/files-dialog.js";
 
@@ -108,6 +110,11 @@ import { pickDefaultModel } from "./default-model.js";
 import { getThinkingLevels, installKeyboardShortcuts } from "./keyboard-shortcuts.js";
 import { createQueueDisplay } from "./queue-display.js";
 import { createActionQueue } from "./action-queue.js";
+import {
+  NoActionRetryBudget,
+  NO_ACTION_RETRY_MESSAGE,
+  isNoActionAssistantTurn,
+} from "./no-action-retry.js";
 import { RecentlyClosedStack, type RecentlyClosedItem } from "./recently-closed.js";
 import { setupSessionPersistence } from "./sessions.js";
 import {
@@ -156,6 +163,15 @@ export async function initTaskpane(opts: {
 
   // 1. Storage
   const { sessions, settings } = initAppStorage();
+
+  try {
+    const seeded = await seedFinancialModelingStandardsIfEmpty(settings);
+    if (seeded) {
+      document.dispatchEvent(new CustomEvent("pi:rules-updated"));
+    }
+  } catch (error: unknown) {
+    console.warn("[standards] Failed to bootstrap financial modeling standards:", error);
+  }
 
   // 1b. Auto-compaction (Pi defaults to enabled)
   let autoCompactEnabled = true;
@@ -296,6 +312,15 @@ export async function initTaskpane(opts: {
       const workbookRules = await getWorkbookRules(settings, args.workbookId);
       setRulesActive(hasAnyRules({ userRules, workbookRules }));
       const conventions = await getResolvedConventions(settings);
+      const templateProfile = await detectTemplateProfile().catch(() => ({
+        templateMode: false,
+        sampledSheets: 0,
+        nonEmptySheets: 0,
+        sampledCells: 0,
+        formattedCells: 0,
+        formulaCells: 0,
+        reason: "Template profile detection failed.",
+      }));
       const activeIntegrations = buildIntegrationPromptEntries(args.activeIntegrationIds);
       return buildSystemPrompt({
         userInstructions: userRules,
@@ -304,6 +329,7 @@ export async function initTaskpane(opts: {
         availableSkills,
         executionMode: getExecutionMode(),
         conventions,
+        templateMode: templateProfile.templateMode,
       });
     } catch {
       setRulesActive(false);
@@ -659,7 +685,7 @@ export async function initTaskpane(opts: {
       initialState: {
         systemPrompt: initialCapabilities.systemPrompt,
         model: initialModel,
-        thinkingLevel: initialModel.reasoning ? "high" : "off",
+        thinkingLevel: initialModel.reasoning ? "medium" : "off",
         messages: [],
         tools: initialCapabilities.tools,
       },
@@ -669,6 +695,7 @@ export async function initTaskpane(opts: {
     });
 
     runtimeAgent = agent;
+    const noActionRetryBudget = new NoActionRetryBudget();
 
     const refreshRuntimeCapabilities = async () => {
       const nextSessionId = runtimeAgent?.sessionId ?? runtimeSessionId;
@@ -725,8 +752,30 @@ export async function initTaskpane(opts: {
     const unsubscribeErrorTracking = agent.subscribe((ev) => {
       const isActiveRuntime = runtimeManager.getActiveRuntime()?.runtimeId === runtimeId;
 
-      if (ev.type === "message_start" && ev.message.role === "user" && isActiveRuntime) {
-        clearErrorBanner(errorRoot);
+      if (ev.type === "message_start" && ev.message.role === "user") {
+        noActionRetryBudget.beginUserTurn(ev.message);
+
+        if (isActiveRuntime) {
+          clearErrorBanner(errorRoot);
+        }
+        return;
+      }
+
+      if (ev.type === "turn_end") {
+        if (
+          isNoActionAssistantTurn({
+            message: ev.message,
+            toolResults: ev.toolResults,
+          })
+          && noActionRetryBudget.consumeRetry()
+        ) {
+          agent.followUp({
+            role: "user",
+            content: NO_ACTION_RETRY_MESSAGE,
+            timestamp: Date.now(),
+          });
+        }
+        return;
       }
 
       if (ev.type !== "agent_end") return;

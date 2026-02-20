@@ -199,6 +199,22 @@ export interface WorkbookHistoryDetails {
   error?: string;
 }
 
+export interface ModelQualityCheckDetails {
+  kind: "model_quality_check";
+  action: "scan" | "autofix_safe";
+  scannedSheets: number;
+  scannedCells: number;
+  issueCount: number;
+  fixesApplied: number;
+  byKind: {
+    formula_error: number;
+    formula_pattern_inconsistency: number;
+    hardcoded_literal_in_formula: number;
+    format_violation: number;
+    missing_source_note: number;
+  };
+}
+
 export type SkillsSourceKind = "bundled" | "external";
 
 export interface SkillsListEntryDetails {
@@ -763,6 +779,25 @@ export function isWorkbookHistoryDetails(value: unknown): value is WorkbookHisto
     isOptionalNumber(value.changedCount) &&
     isOptionalNumber(value.deletedCount) &&
     isOptionalString(value.error)
+  );
+}
+
+export function isModelQualityCheckDetails(value: unknown): value is ModelQualityCheckDetails {
+  if (!isRecord(value)) return false;
+  if (value.kind !== "model_quality_check") return false;
+  if (!(value.action === "scan" || value.action === "autofix_safe")) return false;
+  if (!isRecord(value.byKind)) return false;
+
+  return (
+    typeof value.scannedSheets === "number" &&
+    typeof value.scannedCells === "number" &&
+    typeof value.issueCount === "number" &&
+    typeof value.fixesApplied === "number" &&
+    typeof value.byKind.formula_error === "number" &&
+    typeof value.byKind.formula_pattern_inconsistency === "number" &&
+    typeof value.byKind.hardcoded_literal_in_formula === "number" &&
+    typeof value.byKind.format_violation === "number" &&
+    typeof value.byKind.missing_source_note === "number"
   );
 }
 

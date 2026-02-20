@@ -122,3 +122,18 @@ void test("selectToolBundle ignores trailing auto-context user messages", () => 
     [...TOOL_DISCLOSURE_BUNDLES.comments],
   );
 });
+
+void test("selectToolBundle routes modeling-intent prompts to full bundle", () => {
+  const context = createContext({
+    prompt: "Give me a template 3-statement financial model with connected line items and projections.",
+    tools: createCoreToolSet(),
+  });
+
+  const result = selectToolBundle(context);
+
+  assert.equal(result.bundleId, "full");
+  assert.deepEqual(
+    result.tools?.map((tool) => tool.name),
+    [...CORE_TOOL_NAMES],
+  );
+});

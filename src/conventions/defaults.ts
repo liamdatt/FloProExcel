@@ -27,7 +27,10 @@ export const DEFAULT_VISUAL_DEFAULTS = {
 
 export const DEFAULT_COLOR_CONVENTIONS = {
   hardcodedValueColor: "#0000FF",
+  formulaColor: "#000000",
   crossSheetLinkColor: "#008000",
+  externalLinkColor: "#FF0000",
+  assumptionFillColor: "#FFFF00",
 } as const;
 
 export const DEFAULT_HEADER_STYLE = {

@@ -10,6 +10,7 @@ export const CORE_TOOL_NAMES = [
   "conditional_format",
   "trace_dependencies",
   "explain_formula",
+  "model_quality_check",
   "view_settings",
   "comments",
   "instructions",

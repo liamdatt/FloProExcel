@@ -66,7 +66,10 @@ const schema = Type.Object({
 
   color_conventions: Type.Optional(Type.Object({
     hardcoded_value_color: Type.Optional(Type.String()),
+    formula_color: Type.Optional(Type.String()),
     cross_sheet_link_color: Type.Optional(Type.String()),
+    external_link_color: Type.Optional(Type.String()),
+    assumption_fill_color: Type.Optional(Type.String()),
   })),
 
   header_style: Type.Optional(Type.Object({
@@ -125,7 +128,10 @@ function formatConventionsMarkdown(stored: StoredConventions): string {
     "",
     "### Font color conventions",
     `- Hardcoded value font color: ${resolved.colorConventions.hardcodedValueColor}`,
+    `- Formula font color: ${resolved.colorConventions.formulaColor}`,
     `- Cross-sheet link font color: ${resolved.colorConventions.crossSheetLinkColor}`,
+    `- External-link font color: ${resolved.colorConventions.externalLinkColor}`,
+    `- Assumption fill color: ${resolved.colorConventions.assumptionFillColor}`,
     "",
     "### Header style",
     `- Fill: ${resolved.headerStyle.fillColor}`,
@@ -221,7 +227,10 @@ function buildUpdates(params: Params): StoredConventions {
   if (params.color_conventions) {
     updates.colorConventions = {
       hardcodedValueColor: params.color_conventions.hardcoded_value_color,
+      formulaColor: params.color_conventions.formula_color,
       crossSheetLinkColor: params.color_conventions.cross_sheet_link_color,
+      externalLinkColor: params.color_conventions.external_link_color,
+      assumptionFillColor: params.color_conventions.assumption_fill_color,
     };
   }
 
@@ -262,7 +271,10 @@ function validateSetParams(params: Params): string[] {
 
   if (params.color_conventions) {
     validateColor("color_conventions.hardcoded_value_color", params.color_conventions.hardcoded_value_color);
+    validateColor("color_conventions.formula_color", params.color_conventions.formula_color);
     validateColor("color_conventions.cross_sheet_link_color", params.color_conventions.cross_sheet_link_color);
+    validateColor("color_conventions.external_link_color", params.color_conventions.external_link_color);
+    validateColor("color_conventions.assumption_fill_color", params.color_conventions.assumption_fill_color);
   }
 
   if (params.header_style) {

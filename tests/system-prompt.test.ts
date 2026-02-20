@@ -29,6 +29,15 @@ void test("system prompt renders Confirm execution mode guidance", () => {
   assert.match(prompt, /destructive structure operations as high-risk/i);
 });
 
+void test("system prompt includes template mode directive", () => {
+  const defaultPrompt = buildSystemPrompt();
+  assert.match(defaultPrompt, /templateMode=false/);
+
+  const templatePrompt = buildSystemPrompt({ templateMode: true });
+  assert.match(templatePrompt, /templateMode=true/);
+  assert.match(templatePrompt, /Existing workbook conventions override global defaults/i);
+});
+
 void test("system prompt embeds provided user and workbook instructions", () => {
   const prompt = buildSystemPrompt({
     userInstructions: "Always use EUR",

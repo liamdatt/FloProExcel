@@ -52,6 +52,9 @@ void test("builtins registry wires /addons, /experimental, /extensions, /integra
   assert.match(source, /createIntegrationsCommands/);
   assert.match(source, /\.\.\.createIntegrationsCommands\(context\)/);
 
+  assert.match(source, /createModelingCommands/);
+  assert.match(source, /\.\.\.createModelingCommands\(context\.getActiveAgent\)/);
+
   assert.match(source, /createExtensionsCommands/);
   assert.match(source, /\.\.\.createExtensionsCommands\(context\)/);
 
@@ -309,6 +312,15 @@ void test("settings builtins route to unified settings overlay", async () => {
   assert.match(settingsSource, /name:\s*"yolo"/);
   assert.match(settingsSource, /Toggle execution mode \(Auto vs Confirm\)/);
   assert.match(settingsSource, /Usage:\s*\/yolo/);
+});
+
+void test("modeling builtins expose /quality and /build_model", async () => {
+  const source = await readFile(new URL("../src/commands/builtins/modeling.ts", import.meta.url), "utf8");
+
+  assert.match(source, /name:\s*"quality"/);
+  assert.match(source, /model_quality_check/);
+  assert.match(source, /name:\s*"build_model"/);
+  assert.match(source, /executeModelingBlueprint/);
 });
 
 void test("provider and experimental overlays are aliases into settings sections", async () => {

@@ -51,8 +51,14 @@ export interface StoredVisualDefaults {
 export interface StoredColorConventions {
   /** Font color for hardcoded values. */
   hardcodedValueColor?: string;
+  /** Font color for formula/calculation cells. */
+  formulaColor?: string;
   /** Font color for cross-sheet links. */
   crossSheetLinkColor?: string;
+  /** Font color for external workbook links. */
+  externalLinkColor?: string;
+  /** Fill color for key assumptions. */
+  assumptionFillColor?: string;
 }
 
 export interface StoredHeaderStyle {
@@ -82,7 +88,10 @@ export interface ResolvedVisualDefaults {
 
 export interface ResolvedColorConventions {
   hardcodedValueColor: string;
+  formulaColor: string;
   crossSheetLinkColor: string;
+  externalLinkColor: string;
+  assumptionFillColor: string;
 }
 
 export interface ResolvedHeaderStyle {

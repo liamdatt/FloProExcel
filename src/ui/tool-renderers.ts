@@ -22,6 +22,7 @@ import {
   isExplainFormulaDetails,
   isFillFormulaDetails,
   isFormatCellsDetails,
+  isModelQualityCheckDetails,
   isModifyStructureDetails,
   isPythonTransformRangeDetails,
   isReadRangeCsvDetails,
@@ -934,6 +935,29 @@ function describeToolCall(
         return { action: "Clear", detail: "backups" };
       }
       return { action: "List", detail: "backups" };
+    }
+    case "model_quality_check": {
+      const action = p.action as string | undefined;
+
+      if (isModelQualityCheckDetails(details)) {
+        if (details.action === "autofix_safe") {
+          return {
+            action: "Model autofix",
+            detail: `${details.issueCount} issues, ${details.fixesApplied} fixes`,
+          };
+        }
+
+        return {
+          action: "Model scan",
+          detail: `${details.issueCount} issues`,
+        };
+      }
+
+      if (action === "autofix_safe") {
+        return { action: "Model autofix", detail: "safe fixes" };
+      }
+
+      return { action: "Model scan", detail: "quality" };
     }
     case "skills": {
       const action = p.action as string | undefined;

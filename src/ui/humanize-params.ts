@@ -742,6 +742,27 @@ function humanizeWorkbookHistory(p: Record<string, unknown>): ParamItem[] {
   return items;
 }
 
+function humanizeModelQualityCheck(p: Record<string, unknown>): ParamItem[] {
+  const items: ParamItem[] = [];
+  const action = str(p.action || "scan");
+
+  items.push({ label: "Action", value: action });
+
+  const maxIssues = num(p.max_issues);
+  if (maxIssues !== undefined) {
+    items.push({ label: "Max issues", value: String(maxIssues) });
+  }
+
+  if (typeof p.add_source_note_placeholders === "boolean") {
+    items.push({
+      label: "Add source placeholders",
+      value: p.add_source_note_placeholders ? "yes" : "no",
+    });
+  }
+
+  return items;
+}
+
 function humanizeSkills(p: Record<string, unknown>): ParamItem[] {
   const items: ParamItem[] = [];
   const action = str(p.action || "list");
@@ -971,6 +992,7 @@ const CORE_HUMANIZERS = {
   instructions: humanizeInstructions,
   conventions: humanizeConventions,
   workbook_history: humanizeWorkbookHistory,
+  model_quality_check: humanizeModelQualityCheck,
   skills: humanizeSkills,
 } satisfies Record<CoreToolName, HumanizerFn>;
 

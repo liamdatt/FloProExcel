@@ -81,6 +81,11 @@ const CORE_TOOL_CAPABILITY_METADATA = {
     category: "inspect",
     promptDescription: "explain a single formula cell in plain language with cited direct references",
   },
+  model_quality_check: {
+    tier: "core",
+    category: "inspect",
+    promptDescription: "scan model quality (formula errors, consistency, hardcoded literals, formatting/source-note rules) and apply safe autofixes",
+  },
   view_settings: {
     tier: "core",
     category: "view",
@@ -163,6 +168,17 @@ export const TOOL_DISCLOSURE_FULL_ACCESS_PATTERNS: readonly RegExp[] = [
   /\buse whatever tools?\b/,
 ];
 
+export const TOOL_DISCLOSURE_MODELING_INTENT_PATTERNS: readonly RegExp[] = [
+  /\b3[\s-]?statement\b/,
+  /\bthree[\s-]?statement\b/,
+  /\btemplate\b/,
+  /\bbuild\b[^\n]{0,20}\bmodel\b/,
+  /\bfinancial model(ing)?\b/,
+  /\bforecast(ing)?\b/,
+  /\bprojection(s)?\b/,
+  /\bline items?\b/,
+];
+
 export const TOOL_DISCLOSURE_TRIGGER_PATTERNS = {
   comments: [
     /\bcomment(s)?\b/,
@@ -221,6 +237,7 @@ function matchesAny(text: string, patterns: readonly RegExp[]): boolean {
 
 export function chooseToolDisclosureBundle(prompt: string): ActiveToolDisclosureBundleId {
   if (matchesAny(prompt, TOOL_DISCLOSURE_FULL_ACCESS_PATTERNS)) return "full";
+  if (matchesAny(prompt, TOOL_DISCLOSURE_MODELING_INTENT_PATTERNS)) return "full";
 
   const matchedBundles: TriggeredToolDisclosureBundleId[] = [];
 
@@ -283,6 +300,7 @@ export const TOOL_UI_METADATA = {
   conditional_format: { renderer: true, humanizer: true },
   trace_dependencies: { renderer: true, humanizer: true },
   explain_formula: { renderer: true, humanizer: true },
+  model_quality_check: { renderer: true, humanizer: true },
   view_settings: { renderer: true, humanizer: true },
   comments: { renderer: true, humanizer: true },
   instructions: { renderer: true, humanizer: true },

@@ -205,6 +205,7 @@ void test("Ajv stubs keep fallback behavior explicit", () => {
 void test("curated OpenRouter list is pinned and ordered", () => {
   assert.deepEqual(OPENROUTER_CURATED_MODELS, [
     "google/gemini-3.1-pro-preview",
+    "google/gemini-3-flash-preview",
     "anthropic/claude-sonnet-4.6",
     "openai/gpt-5.2-codex",
     "moonshotai/kimi-k2.5",

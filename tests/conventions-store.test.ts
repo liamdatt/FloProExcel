@@ -59,7 +59,10 @@ void describe("getStoredConventions", () => {
       },
       colorConventions: {
         hardcodedValueColor: "rgb(0,0,255)",
+        formulaColor: "#000",
         crossSheetLinkColor: "#008000",
+        externalLinkColor: "#f00",
+        assumptionFillColor: "rgb(255,255,0)",
       },
       headerStyle: {
         fillColor: "#002060",
@@ -74,7 +77,10 @@ void describe("getStoredConventions", () => {
     assert.equal(result.customPresets?.bps?.description, "Basis points");
     assert.equal(result.visualDefaults?.fontName, "Calibri");
     assert.equal(result.colorConventions?.hardcodedValueColor, "#0000FF");
+    assert.equal(result.colorConventions?.formulaColor, "#000000");
     assert.equal(result.colorConventions?.crossSheetLinkColor, "#008000");
+    assert.equal(result.colorConventions?.externalLinkColor, "#FF0000");
+    assert.equal(result.colorConventions?.assumptionFillColor, "#FFFF00");
     assert.equal(result.headerStyle?.fontColor, "#FFFFFF");
   });
 
@@ -243,10 +249,14 @@ void describe("diffFromDefaults", () => {
       visualDefaults: {
         fontName: "Calibri",
       },
+      colorConventions: {
+        externalLinkColor: "#990000",
+      },
     }));
 
     const fields = diffs.map((diff) => diff.field);
     assert.ok(fields.includes("customPresets.bps"));
     assert.ok(fields.includes("visualDefaults.fontName"));
+    assert.ok(fields.includes("colorConventions.externalLinkColor"));
   });
 });

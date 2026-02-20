@@ -2,6 +2,7 @@ export const OPENROUTER_PROVIDER = "openrouter";
 
 export const OPENROUTER_CURATED_MODELS = [
   "google/gemini-3.1-pro-preview",
+  "google/gemini-3-flash-preview",
   "anthropic/claude-sonnet-4.6",
   "openai/gpt-5.2-codex",
   "moonshotai/kimi-k2.5",

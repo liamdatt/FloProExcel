@@ -8,6 +8,7 @@
 import {
   streamSimple,
   type Api,
+  type AssistantMessage,
   type Context,
   type Model,
   type StreamOptions,
@@ -15,6 +16,10 @@ import {
 
 import { isDebugEnabled } from "../debug/debug.js";
 import { selectToolBundle, type ToolBundleId } from "../context/tool-disclosure.js";
+import {
+  hasTrailingNoActionRetryMarker,
+  isNoActionAssistantTurn,
+} from "../taskpane/no-action-retry.js";
 import {
   OPENROUTER_PROVIDER,
   isOpenRouterCuratedModelId,
@@ -143,6 +148,9 @@ export interface PayloadSnapshot {
   isToolContinuation: boolean;
   toolBundle: ToolBundleId;
   toolsIncluded: boolean;
+  retryApplied: boolean;
+  noActionDetected?: boolean;
+  stopReason?: string;
   systemChars: number;
   toolSchemaChars: number;
   messageChars: number;
@@ -302,6 +310,7 @@ function recordCall(
   options: StreamOptions | undefined,
   continuation: boolean,
   toolBundle: ToolBundleId,
+  retryApplied: boolean,
 ): { call: number; captureSnapshot: boolean } {
   stats.calls += 1;
   stats.systemChars = context.systemPrompt?.length ?? 0;
@@ -342,6 +351,8 @@ function recordCall(
       isToolContinuation: continuation,
       toolBundle,
       toolsIncluded: stats.toolCount > 0,
+      retryApplied,
+      noActionDetected: false,
       systemChars: stats.systemChars,
       toolSchemaChars: stats.toolSchemaChars,
       messageChars: stats.messageChars,
@@ -374,16 +385,64 @@ function withPayloadHook(
   return { onPayload };
 }
 
+function setCallOutcomeDiagnostics(args: {
+  call: number;
+  stopReason?: string;
+  noActionDetected?: boolean;
+}): void {
+  let index = -1;
+  for (let i = payloadSnapshots.length - 1; i >= 0; i -= 1) {
+    if (payloadSnapshots[i].call === args.call) {
+      index = i;
+      break;
+    }
+  }
+
+  if (index < 0) return;
+
+  payloadSnapshots[index] = {
+    ...payloadSnapshots[index],
+    ...(args.stopReason ? { stopReason: args.stopReason } : {}),
+    ...(typeof args.noActionDetected === "boolean"
+      ? { noActionDetected: args.noActionDetected }
+      : {}),
+  };
+
+  document.dispatchEvent(new Event("pi:status-update"));
+}
+
+interface RetryAwareStreamOptions extends StreamOptions {
+  reasoning?: "minimal" | "low" | "medium" | "high" | "xhigh";
+  toolChoice?: "required";
+}
+
+export function applyNoActionRetryStreamOptions(
+  options: StreamOptions | undefined,
+): RetryAwareStreamOptions {
+  return {
+    ...(options ?? {}),
+    toolChoice: "required",
+    reasoning: "low",
+  };
+}
+
 /**
  * Create a StreamFn compatible with Agent for managed OpenRouter routing.
  */
 export function createOfficeStreamFn(getOpenRouterBaseUrl: GetOpenRouterBaseUrl) {
   return async (model: Model<Api>, context: Context, options?: StreamOptions) => {
     const continuation = isToolContinuation(context.messages);
+    const retryApplied = hasTrailingNoActionRetryMarker(context.messages);
+    const retryBundleId: ToolBundleId = context.tools && context.tools.length > 0 ? "full" : "none";
 
     // Always expose tools (via deterministic bundle selection), including
     // continuation calls after tool results. This preserves full agent loops.
-    const toolSelection = selectToolBundle(context);
+    const toolSelection = retryApplied
+      ? {
+        tools: context.tools,
+        bundleId: retryBundleId,
+      }
+      : selectToolBundle(context);
 
     const effectiveContext = toolSelection.tools === context.tools
       ? context
@@ -398,9 +457,32 @@ export function createOfficeStreamFn(getOpenRouterBaseUrl: GetOpenRouterBaseUrl)
       options,
       continuation,
       toolSelection.bundleId,
+      retryApplied,
     );
-    const effectiveOptions = withPayloadHook(options, callRecord.call, callRecord.captureSnapshot);
+    const baseOptions = withPayloadHook(options, callRecord.call, callRecord.captureSnapshot);
+    const effectiveOptions = retryApplied
+      ? applyNoActionRetryStreamOptions(baseOptions)
+      : baseOptions;
 
-    return streamSimple(normalizedModel, effectiveContext, effectiveOptions);
+    const stream = streamSimple(normalizedModel, effectiveContext, effectiveOptions);
+
+    if (callRecord.captureSnapshot) {
+      void stream.result()
+        .then((assistantMessage: AssistantMessage) => {
+          setCallOutcomeDiagnostics({
+            call: callRecord.call,
+            stopReason: assistantMessage.stopReason,
+            noActionDetected: isNoActionAssistantTurn({ message: assistantMessage }),
+          });
+        })
+        .catch(() => {
+          setCallOutcomeDiagnostics({
+            call: callRecord.call,
+            stopReason: "error",
+          });
+        });
+    }
+
+    return stream;
   };
 }
